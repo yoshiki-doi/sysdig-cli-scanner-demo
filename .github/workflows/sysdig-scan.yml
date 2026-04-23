@@ -33,6 +33,7 @@ jobs:
           sysdig-secure-url: https://au1.app.sysdig.com
           stop-on-failed-policy-eval: true
           severity-at-least: high
+          sarif-file-output: ${{ github.workspace }}/sarif.json
 
       - name: Upload SARIF report
         if: always()
