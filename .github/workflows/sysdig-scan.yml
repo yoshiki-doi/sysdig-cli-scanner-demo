@@ -9,6 +9,10 @@ on:
 env:
   IMAGE_NAME: security-playground
   IMAGE_TAG: ${{ github.sha }}
+  SYSDIG_SECURE_URL: https://app.au1.sysdig.com
+  CLI_SCANNER_VERSION: "1.26.0"
+  SEVERITY_AT_LEAST: high
+  EXTRA_PARAMETERS: ""
 
 jobs:
   build:
@@ -57,9 +61,11 @@ jobs:
         with:
           image-tag: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
           sysdig-secure-token: ${{ secrets.SYSDIG_SECURE_TOKEN }}
-          sysdig-secure-url: https://app.au1.sysdig.com
+          sysdig-secure-url: ${{ env.SYSDIG_SECURE_URL }}
+          cli-scanner-version: ${{ env.CLI_SCANNER_VERSION }}
           stop-on-failed-policy-eval: true
-          severity-at-least: high
+          severity-at-least: ${{ env.SEVERITY_AT_LEAST }}
+          extra-parameters: ${{ env.EXTRA_PARAMETERS }}
 
       - name: Upload SARIF report
         if: success() || failure()
@@ -93,9 +99,11 @@ jobs:
         with:
           image-tag: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
           sysdig-secure-token: ${{ secrets.SYSDIG_SECURE_TOKEN }}
-          sysdig-secure-url: https://app.au1.sysdig.com
+          sysdig-secure-url: ${{ env.SYSDIG_SECURE_URL }}
+          cli-scanner-version: ${{ env.CLI_SCANNER_VERSION }}
           stop-on-failed-policy-eval: false
-          severity-at-least: high
+          severity-at-least: ${{ env.SEVERITY_AT_LEAST }}
+          extra-parameters: ${{ env.EXTRA_PARAMETERS }}
 
       - name: Upload SARIF report
         if: success() || failure()
