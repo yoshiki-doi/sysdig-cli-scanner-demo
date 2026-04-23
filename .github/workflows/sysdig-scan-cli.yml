@@ -1,0 +1,93 @@
+name: Build and Sysdig Scan (CLI)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  IMAGE_NAME: security-playground
+  IMAGE_TAG: ${{ github.sha }}
+  SYSDIG_SECURE_URL: https://app.au1.sysdig.com
+  CLI_SCANNER_VERSION: "1.26.0"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          docker build -t ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} .
+
+      - name: Save Docker image
+        run: |
+          docker save ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} -o image.tar
+
+      - name: Upload Docker image
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: image.tar
+          retention-days: 1
+
+  scan-strict:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
+      - name: Load Docker image
+        run: |
+          docker load -i image.tar
+
+      - name: Install Sysdig CLI Scanner
+        run: |
+          curl -sLO "https://download.sysdig.com/scanning/bin/sysdig-cli-scanner/${CLI_SCANNER_VERSION}/linux/amd64/sysdig-cli-scanner"
+          curl -sLO "https://download.sysdig.com/scanning/bin/sysdig-cli-scanner/${CLI_SCANNER_VERSION}/linux/amd64/sysdig-cli-scanner.sha256"
+          sha256sum --check sysdig-cli-scanner.sha256
+          chmod +x sysdig-cli-scanner
+
+      - name: Run Sysdig CLI Scanner - Strict
+        env:
+          SECURE_API_TOKEN: ${{ secrets.SYSDIG_SECURE_TOKEN }}
+        run: |
+          ./sysdig-cli-scanner \
+            --apiurl "${{ env.SYSDIG_SECURE_URL }}" \
+            --output-json=scan-result.json \
+            "${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
+
+  scan-permissive:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Docker image
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+
+      - name: Load Docker image
+        run: |
+          docker load -i image.tar
+
+      - name: Install Sysdig CLI Scanner
+        run: |
+          curl -sLO "https://download.sysdig.com/scanning/bin/sysdig-cli-scanner/${CLI_SCANNER_VERSION}/linux/amd64/sysdig-cli-scanner"
+          curl -sLO "https://download.sysdig.com/scanning/bin/sysdig-cli-scanner/${CLI_SCANNER_VERSION}/linux/amd64/sysdig-cli-scanner.sha256"
+          sha256sum --check sysdig-cli-scanner.sha256
+          chmod +x sysdig-cli-scanner
+
+      - name: Run Sysdig CLI Scanner - Permissive
+        env:
+          SECURE_API_TOKEN: ${{ secrets.SYSDIG_SECURE_TOKEN }}
+        run: |
+          ./sysdig-cli-scanner \
+            --apiurl "${{ env.SYSDIG_SECURE_URL }}" \
+            --output-json=scan-result.json \
+            "${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}" || true
