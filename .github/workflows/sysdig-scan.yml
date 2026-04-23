@@ -1,0 +1,41 @@
+name: Build and Sysdig Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  IMAGE_NAME: security-playground
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  build-and-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          docker build -t ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} .
+
+      - name: Sysdig CLI Scanner - Vulnerability Scan
+        uses: sysdiglabs/scan-action@v6
+        with:
+          image-tag: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          sysdig-secure-token: ${{ secrets.SYSDIG_SECURE_TOKEN }}
+          sysdig-secure-url: https://au1.app.sysdig.com
+          stop-on-failed-policy-eval: true
+          severity-at-least: high
+
+      - name: Upload SARIF report
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ github.workspace }}/sarif.json
